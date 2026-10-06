@@ -61,14 +61,13 @@ def detect_columns(df, file_ids):
 
 
 def load_dataset(data_dir=DATA_DIR, output_dir=OUTPUT_DIR):
-    """Return transcripts with a `label` column (NaN for test) and the sample submission.
+    """Return transcripts with a `label` column (NaN for test) and the (file, score) column names.
 
-    Also returns the column names of the sample submission so predictions can be
-    written back in exactly the required format.
+    Test rows come in test.csv order. sample_submission.csv is only used for its
+    column names: its ids are a mix of train, test and unknown files.
     """
     transcripts = load_transcripts(output_dir)
     train_csv = pd.read_csv(data_dir / "train.csv")
-    sample_sub = pd.read_csv(data_dir / "sample_submission.csv")
 
     is_train = transcripts["split"] == "train"
     file_col, label_col = detect_columns(train_csv, transcripts.loc[is_train, "file_id"])
@@ -77,19 +76,16 @@ def load_dataset(data_dir=DATA_DIR, output_dir=OUTPUT_DIR):
     if transcripts.loc[is_train, "label"].isna().any():
         raise ValueError("some training clips have no label")
 
-    sub_cols = detect_columns(sample_sub, transcripts.loc[~is_train, "file_id"])
-    print(f"train.csv: file column '{file_col}', score column '{label_col}'")
-    print(f"sample_submission.csv: file column '{sub_cols[0]}', score column '{sub_cols[1]}'")
-    return transcripts, sample_sub, sub_cols
+    sample_cols = list(pd.read_csv(data_dir / "sample_submission.csv", nrows=0).columns)
+    if sample_cols != [file_col, label_col]:
+        raise ValueError(f"sample_submission columns {sample_cols} differ from train.csv")
+    print(f"file column '{file_col}', score column '{label_col}'")
+    return transcripts, (file_col, label_col)
 
 
-def write_submission(sample_sub, sub_cols, test_ids, test_pred, path):
-    """Fill the sample submission with our predictions, matched by file id."""
-    file_col, label_col = sub_cols
-    pred = pd.Series(test_pred, index=pd.Index(test_ids, dtype=str))
-    sub = sample_sub.copy()
-    sub[label_col] = sub[file_col].astype(str).map(pred)
-    if sub[label_col].isna().any():
-        raise ValueError("some test clips have no prediction")
+def write_submission(test_ids, test_pred, columns, path):
+    """Write one row per test clip, with the same columns as sample_submission.csv."""
+    file_col, label_col = columns
+    sub = pd.DataFrame({file_col: list(test_ids), label_col: test_pred})
     sub.to_csv(path, index=False)
     return sub

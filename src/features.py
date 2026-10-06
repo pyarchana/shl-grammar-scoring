@@ -29,6 +29,33 @@ SUBORDINATORS = {"because", "although", "though", "while", "whereas", "if", "unl
 LT_IGNORED_CATEGORIES = {"TYPOS", "TYPOGRAPHY", "CASING", "PUNCTUATION"}
 
 
+def remove_asr_loops(text, max_phrase=6, min_repeats=4):
+    """Collapse a phrase repeated `min_repeats`+ times in a row down to one copy.
+
+    Whisper sometimes gets stuck and writes the same word or phrase hundreds of
+    times ("tap tap tap ..."). Real speakers rarely repeat a phrase 4 times in a
+    row, so longer runs are treated as transcription errors.
+    """
+    tokens = text.split()
+    keys = [re.sub(r"[^\w']", "", t.lower()) for t in tokens]
+    kept, i = [], 0
+    while i < len(tokens):
+        keep, skip = 1, 1  # by default copy one token and move on
+        for n in range(1, max_phrase + 1):
+            unit = keys[i:i + n]
+            if len(unit) < n or not any(unit):
+                break
+            reps = 1
+            while keys[i + reps * n:i + (reps + 1) * n] == unit:
+                reps += 1
+            if reps >= min_repeats:
+                keep, skip = n, reps * n  # keep one copy of the phrase, skip the rest
+                break
+        kept.extend(tokens[i:i + keep])
+        i += skip
+    return " ".join(kept)
+
+
 def transcript_features(text):
     """Length, sentence structure, vocabulary and disfluency features for one transcript."""
     words = [w.lower() for w in WORD_RE.findall(text)]
