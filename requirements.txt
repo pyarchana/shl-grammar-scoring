@@ -1,0 +1,14 @@
+# Local pipeline (features, training, report notebook). Runs on CPU.
+numpy>=1.26
+pandas>=2.0
+scipy>=1.11
+scikit-learn>=1.4
+matplotlib>=3.8
+language-tool-python>=3.0  # grammar error counts, needs Java 17+
+jupyter>=1.0
+
+# Kaggle GPU notebook only (kaggle_transcribe.ipynb). These are preinstalled
+# on Kaggle, listed here so the full dependency set is documented.
+# torch>=2.1
+# transformers>=4.40
+# librosa>=0.10

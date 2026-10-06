@@ -1,0 +1,16 @@
+# Local-only instructions
+CLAUDE.md
+
+# Competition data and credentials (never commit)
+data/
+kaggle.json
+.kaggle/
+*.zip
+
+# Python and Jupyter clutter
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
+venv/
+.env
