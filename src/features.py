@@ -5,6 +5,7 @@ fast the speaker talks, how long and complex the sentences are, how varied the
 vocabulary is, how often they hesitate, and how many grammar errors a rule-based
 checker (LanguageTool) finds.
 """
+import hashlib
 import re
 from pathlib import Path
 
@@ -93,10 +94,14 @@ def languagetool_features(transcripts, cache_path, language="en-US"):
     is computed once and reused, like the transcripts themselves.
     """
     cache_path = Path(cache_path)
+    # A short hash of each transcript, so a cache built from other transcripts is not reused.
+    text_hash = [hashlib.md5(t.encode("utf-8")).hexdigest()[:10] for t in transcripts["transcript"]]
     if cache_path.exists():
-        cached = pd.read_csv(cache_path, dtype={"file_id": str}, keep_default_na=False)
+        cached = pd.read_csv(cache_path, dtype={"file_id": str, "text_hash": str}, keep_default_na=False)
         check_alignment(cached, transcripts, cache_path.name)
-        return cached
+        if cached.get("text_hash", pd.Series(dtype=str)).tolist() == text_hash:
+            return cached
+        print("Transcripts changed since the LanguageTool cache was built; recomputing")
 
     import language_tool_python  # imported here so the cached path needs no Java
 
@@ -120,6 +125,7 @@ def languagetool_features(transcripts, cache_path, language="en-US"):
         tool.close()
 
     result = pd.concat([transcripts[["file_id", "split"]].reset_index(drop=True), pd.DataFrame(rows)], axis=1)
+    result["text_hash"] = text_hash
     result.to_csv(cache_path, index=False)
     return result
 
